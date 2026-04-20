@@ -14,6 +14,8 @@ class BookingStatus(str, Enum):
     ACCEPTED = "accepted"
     REJECTED = "rejected"
     IN_PROGRESS = "in_progress"
+    AWAITING_OTP = "awaiting_otp"
+    AWAITING_PAYMENT = "awaiting_payment"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
@@ -167,6 +169,9 @@ class Booking(BaseModel):
     longitude: float
     address: str
     time_slot: Optional[str] = None
+    completion_otp: Optional[str] = None
+    cash_received_at: Optional[datetime] = None
+    invoice_due_date: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     accepted_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
@@ -180,9 +185,16 @@ class BookingCreate(BaseModel):
     latitude: float
     longitude: float
     address: str
-    payment_method: PaymentMethod
+    payment_method: Optional[PaymentMethod] = None
     centre_id: Optional[str] = None
     time_slot: Optional[str] = None
+
+class OTPVerify(BaseModel):
+    booking_id: str
+    otp: str
+
+class CashReceived(BaseModel):
+    booking_id: str
 
 # Rating Model
 class Rating(BaseModel):

@@ -10,7 +10,6 @@ export default function BookingScreen() {
   const { service_id, cleaner_id } = useLocalSearchParams();
   const { user } = useAuthStore();
   const [address, setAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'gpay' | 'cash'>('cash');
   const [loading, setLoading] = useState(false);
 
   // Mock location
@@ -33,12 +32,11 @@ export default function BookingScreen() {
         latitude: mockLat,
         longitude: mockLon,
         address: address,
-        payment_method: paymentMethod,
       });
 
       Alert.alert(
-        'Success',
-        'Booking created! Waiting for cleaner to accept.',
+        'Booking Confirmed!',
+        'Waiting for a CleanPro to accept. You will pay after the service is done.',
         [
           {
             text: 'OK',
@@ -83,45 +81,18 @@ export default function BookingScreen() {
           </View>
         </View>
 
-        {/* Payment Method */}
+        {/* Pay After Service Info */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Method</Text>
-          
-          <TouchableOpacity
-            style={[
-              styles.paymentOption,
-              paymentMethod === 'gpay' && styles.selectedPayment
-            ]}
-            onPress={() => setPaymentMethod('gpay')}
-          >
-            <View style={styles.paymentInfo}>
-              <View style={styles.paymentIcon}>
-                <Text style={styles.paymentIconText}>G</Text>
-              </View>
-              <Text style={styles.paymentText}>Google Pay</Text>
+          <Text style={styles.sectionTitle}>Payment</Text>
+          <View style={styles.payAfterCard}>
+            <Ionicons name="shield-checkmark" size={24} color="#2E7D32" />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.payAfterTitle}>Pay after service is done</Text>
+              <Text style={styles.payAfterDesc}>
+                You will pay only after checking the work. UPI/GPay or Cash — your choice.
+              </Text>
             </View>
-            {paymentMethod === 'gpay' && (
-              <Ionicons name="checkmark-circle" size={24} color="#FF6B35" />
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.paymentOption,
-              paymentMethod === 'cash' && styles.selectedPayment
-            ]}
-            onPress={() => setPaymentMethod('cash')}
-          >
-            <View style={styles.paymentInfo}>
-              <View style={styles.paymentIcon}>
-                <Ionicons name="cash" size={24} color="#4CAF50" />
-              </View>
-              <Text style={styles.paymentText}>Cash Payment</Text>
-            </View>
-            {paymentMethod === 'cash' && (
-              <Ionicons name="checkmark-circle" size={24} color="#FF6B35" />
-            )}
-          </TouchableOpacity>
+          </View>
         </View>
 
         {/* Important Notes */}
@@ -201,43 +172,23 @@ const styles = StyleSheet.create({
     minHeight: 60,
     textAlignVertical: 'top',
   },
-  paymentOption: {
+  payAfterCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#E8F5E9',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
   },
-  selectedPayment: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#E3F2FD',
-  },
-  paymentInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  paymentIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F0F0F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  paymentIconText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#4285F4',
-  },
-  paymentText: {
+  payAfterTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontWeight: 'bold',
+    color: '#2E7D32',
+    marginBottom: 4,
+  },
+  payAfterDesc: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 18,
   },
   notesContainer: {
     flexDirection: 'row',

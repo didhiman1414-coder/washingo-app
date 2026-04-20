@@ -59,6 +59,10 @@ export const bookingAPI = {
     api.patch(`/bookings/${bid}/reject`, null, { params: { cleaner_id: cleanerId } }),
   startBooking: (bid: string) => api.patch(`/bookings/${bid}/start`),
   completeBooking: (bid: string) => api.patch(`/bookings/${bid}/complete`),
+  verifyOtp: (bid: string, otp: string) =>
+    api.patch(`/bookings/${bid}/verify-otp`, { booking_id: bid, otp }),
+  payCash: (bid: string) => api.patch(`/bookings/${bid}/pay-cash`),
+  payOnlineComplete: (bid: string) => api.patch(`/bookings/${bid}/pay-online-complete`),
 };
 
 // Payment APIs

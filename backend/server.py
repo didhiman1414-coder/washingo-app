@@ -9,7 +9,8 @@ import hashlib
 from pathlib import Path
 from typing import List, Optional
 import uuid
-from datetime import datetime
+import random
+from datetime import datetime, timedelta
 import socketio
 import razorpay
 
@@ -21,7 +22,7 @@ from models import (
     Booking, BookingCreate, BookingStatus, BookingType, PaymentMethod, PaymentStatus,
     Rating, RatingCreate,
     RazorpayOrderCreate, RazorpayPaymentVerify,
-    AdminLogin, LocationUpdate
+    AdminLogin, LocationUpdate, OTPVerify, CashReceived
 )
 
 ROOT_DIR = Path(__file__).parent
@@ -578,16 +579,83 @@ async def start_booking(booking_id: str):
 
 @api_router.patch("/bookings/{booking_id}/complete")
 async def complete_booking(booking_id: str):
+    """Worker taps Job Complete → generates 4-digit OTP → sends to customer"""
     booking = await db.bookings.find_one({'booking_id': booking_id})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
+    if booking['status'] not in ['in_progress', 'accepted']:
+        raise HTTPException(status_code=400, detail="Booking must be in progress")
+    
+    # Generate 4-digit OTP
+    otp = str(random.randint(1000, 9999))
     
     await db.bookings.update_one(
         {'booking_id': booking_id},
-        {'$set': {'status': 'completed', 'completed_at': datetime.utcnow(), 'payment_status': 'completed'}}
+        {'$set': {'status': 'awaiting_otp', 'completion_otp': otp}}
     )
     
-    # Update cleaner/centre stats
+    # Send OTP to customer via socket
+    await notify_customer(booking['customer_id'], 'completion_otp', {
+        'booking_id': booking_id,
+        'otp': otp,
+        'message': f'Your service is complete! Share this OTP with the worker: {otp}'
+    })
+    
+    logger.info(f"Completion OTP {otp} generated for booking {booking_id}")
+    
+    updated = await db.bookings.find_one({'booking_id': booking_id}, {'_id': 0})
+    return updated
+
+@api_router.patch("/bookings/{booking_id}/verify-otp")
+async def verify_completion_otp(booking_id: str, data: OTPVerify):
+    """Worker enters OTP from customer → job confirmed → payment screen unlocks"""
+    booking = await db.bookings.find_one({'booking_id': booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if booking['status'] != 'awaiting_otp':
+        raise HTTPException(status_code=400, detail="Booking is not awaiting OTP")
+    
+    if booking.get('completion_otp') != data.otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+    
+    await db.bookings.update_one(
+        {'booking_id': booking_id},
+        {'$set': {'status': 'awaiting_payment', 'completed_at': datetime.utcnow()}}
+    )
+    
+    # Notify customer to show payment screen
+    await notify_customer(booking['customer_id'], 'payment_required', {
+        'booking_id': booking_id,
+        'service_name': booking['service_name'],
+        'amount': booking['service_price']
+    })
+    
+    updated = await db.bookings.find_one({'booking_id': booking_id}, {'_id': 0})
+    return updated
+
+@api_router.patch("/bookings/{booking_id}/pay-cash")
+async def pay_cash(booking_id: str):
+    """Worker taps Cash Received → records cash transaction"""
+    booking = await db.bookings.find_one({'booking_id': booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if booking['status'] != 'awaiting_payment':
+        raise HTTPException(status_code=400, detail="Booking is not awaiting payment")
+    
+    invoice_due = datetime.utcnow() + timedelta(days=7)
+    
+    await db.bookings.update_one(
+        {'booking_id': booking_id},
+        {'$set': {
+            'status': 'completed',
+            'payment_method': 'cash',
+            'payment_status': 'cash_received',
+            'cash_received_at': datetime.utcnow(),
+            'invoice_due_date': invoice_due
+        }}
+    )
+    
+    # Update worker/centre stats
     if booking.get('cleaner_id'):
         await db.cleaners.update_one(
             {'cleaner_id': booking['cleaner_id']},
@@ -599,7 +667,43 @@ async def complete_booking(booking_id: str):
             {'$inc': {'total_jobs': 1, 'earnings': booking.get('worker_amount', booking['service_price'])}}
         )
     
-    await notify_customer(booking['customer_id'], 'booking_completed', {'booking_id': booking_id})
+    # Notify both parties
+    await notify_customer(booking['customer_id'], 'payment_confirmed', {
+        'booking_id': booking_id, 'method': 'cash', 'amount': booking['service_price']
+    })
+    
+    updated = await db.bookings.find_one({'booking_id': booking_id}, {'_id': 0})
+    return updated
+
+@api_router.patch("/bookings/{booking_id}/pay-online-complete")
+async def pay_online_complete(booking_id: str):
+    """Called after Razorpay payment verified → completes booking"""
+    booking = await db.bookings.find_one({'booking_id': booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    await db.bookings.update_one(
+        {'booking_id': booking_id},
+        {'$set': {'status': 'completed', 'payment_method': 'razorpay', 'payment_status': 'paid'}}
+    )
+    
+    # Update worker/centre stats
+    if booking.get('cleaner_id'):
+        await db.cleaners.update_one(
+            {'cleaner_id': booking['cleaner_id']},
+            {'$inc': {'total_jobs': 1, 'earnings': booking.get('worker_amount', booking['service_price'])}}
+        )
+    if booking.get('centre_id'):
+        await db.washing_centres.update_one(
+            {'centre_id': booking['centre_id']},
+            {'$inc': {'total_jobs': 1, 'earnings': booking.get('worker_amount', booking['service_price'])}}
+        )
+    
+    # Notify both
+    await notify_customer(booking['customer_id'], 'payment_confirmed', {
+        'booking_id': booking_id, 'method': 'online', 'amount': booking['service_price']
+    })
+    
     updated = await db.bookings.find_one({'booking_id': booking_id}, {'_id': 0})
     return updated
 
@@ -706,8 +810,12 @@ async def razorpay_webhook(request: Request):
 @api_router.post("/ratings")
 async def create_rating(rating_data: RatingCreate):
     booking = await db.bookings.find_one({'booking_id': rating_data.booking_id})
-    if not booking or booking['status'] != 'completed':
-        raise HTTPException(status_code=400, detail="Can only rate completed bookings")
+    if not booking:
+        raise HTTPException(status_code=400, detail="Booking not found")
+    if booking['status'] != 'completed':
+        raise HTTPException(status_code=400, detail="Rating unlocked only after payment is done")
+    if booking.get('payment_status') not in ['paid', 'cash_received', 'completed']:
+        raise HTTPException(status_code=400, detail="Complete payment first to rate")
     
     existing = await db.ratings.find_one({'booking_id': rating_data.booking_id})
     if existing:
@@ -736,7 +844,7 @@ async def create_rating(rating_data: RatingCreate):
         target_id_field = 'centre_id'
         target_id = rating_data.centre_id
     
-    if target_collection and target_id:
+    if target_collection is not None and target_id:
         target = await target_collection.find_one({target_id_field: target_id})
         if target:
             total_ratings = target['total_ratings'] + 1
