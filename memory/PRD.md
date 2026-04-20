@@ -3,74 +3,49 @@
 ## Overview
 Washingo is an on-demand car cleaning service app (like Rapido for car washing) with three user roles and real payment integration.
 
+## Payment Flow (Rapido-Style — Pay AFTER Service)
+1. Customer books service → **no payment asked**
+2. Worker completes the job → taps "Job Complete"
+3. System generates **4-digit OTP** → sent to customer's phone via Socket.io
+4. Customer checks car → tells OTP to worker
+5. Worker enters OTP → **job confirmed**
+6. Customer sees payment screen with two options:
+   - **Pay via UPI/GPay** → Razorpay (real integration)
+   - **Pay by Cash** → Worker taps "Cash Received"
+7. **Razorpay Route splits**: 85% → Worker, 15% → Washingo
+8. Rating/review unlocks **only after payment is done**
+9. Both customer and worker get payment confirmation notification
+
 ## Architecture
 - **Frontend:** React Native (Expo SDK 54) with expo-router
 - **Backend:** FastAPI with Socket.io for real-time
 - **Database:** MongoDB
-- **Payments:** Razorpay (real integration with test keys)
-- **Maps:** Google Maps API key configured
-- **Auth:** Phone OTP (Mock OTP for now, Firebase Auth config ready)
-- **Real-time:** Socket.io for live booking requests and location tracking
+- **Payments:** Razorpay (REAL integration, test keys)
+- **Real-time:** Socket.io for live notifications, OTP delivery, location tracking
 
 ## Three User Roles
-
-### Role 1: Customer
-- Login with phone + OTP
-- View 4 services: Dusting ₹99, Wet Cloth ₹149, Full Wash ₹299, Visit Centre ₹399
-- Book home service or visit washing centre
-- Pay via Razorpay (UPI/GPay/Cash)
-- Rate workers and centres
-- Booking history
-
-### Role 2: CleanPro (Worker)
-- Register with name, phone, photo, area
-- Online/Offline toggle
-- Receive booking requests with accept/reject
-- Mark jobs as started/complete
-- Earnings dashboard with commission split (85% to worker)
-- Verified CleanPro badge
-
-### Role 3: Washing Centre Partner
-- Register centre with name, address, bays
-- Manage services and availability
-- Receive and accept bookings
-- Live queue management
-- Earnings dashboard
+### Customer: Book services, pay after work, rate
+### CleanPro (Worker): Accept jobs, complete via OTP, collect payment
+### Washing Centre: Register centre, manage bookings
 
 ### Admin Panel
-- Secure login (admin@washingo.com)
-- Dashboard with revenue, commission, stats
-- Manage all users, cleaners, centres
-- View all bookings
+- Login: admin@washingo.com / washingo_admin_2026
 
-## Commission Structure
-- Washingo takes 15% commission
-- Worker/Centre receives 85%
-- Razorpay Route ready for automatic split
+## Services
+- Dusting Only: ₹99
+- Wet Cloth Clean: ₹149
+- Full Wash: ₹299
+- Visit Washing Centre: ₹399
 
-## Theme
-- Primary: Blue (#1565C0)
-- White background
-- Yellow accent (#F9A825)
-- Clean, modern, mobile-first design
+## Commission: 15% Washingo, 85% Worker/Centre
 
-## Integrations
-- **Razorpay:** REAL - Test keys working, order creation verified
-- **Google Maps:** API key configured, ready for map views
-- **Firebase Auth:** Config ready, OTP mock for now (user needs to enable phone auth in Firebase Console)
-- **Socket.io:** Real-time booking notifications and location tracking
-
-## API Endpoints
-- POST /api/auth/register
-- POST /api/auth/login-or-register
-- GET /api/services
-- POST /api/bookings
-- PATCH /api/bookings/{id}/accept
-- PATCH /api/bookings/{id}/complete
-- POST /api/payments/create-order
-- POST /api/payments/verify
-- POST /api/ratings
-- POST /api/admin/login
-- GET /api/admin/dashboard
-- POST /api/centres
-- GET /api/centres/nearby
+## Key API Endpoints (Payment Flow)
+- POST /api/bookings → Create booking (no payment)
+- PATCH /api/bookings/{id}/accept → Cleaner accepts
+- PATCH /api/bookings/{id}/start → Job started
+- PATCH /api/bookings/{id}/complete → Job complete, 4-digit OTP generated
+- PATCH /api/bookings/{id}/verify-otp → Worker enters OTP, payment unlocked
+- PATCH /api/bookings/{id}/pay-cash → Cash received
+- POST /api/payments/create-order → Real Razorpay order
+- PATCH /api/bookings/{id}/pay-online-complete → After Razorpay payment
+- POST /api/ratings → Only works after payment done
