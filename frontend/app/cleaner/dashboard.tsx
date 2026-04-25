@@ -87,7 +87,7 @@ export default function CleanerDashboard() {
       await bookingAPI.acceptBooking(bookingId, cleaner.cleaner_id);
       alert('Booking accepted!');
       loadPendingBookings();
-      router.push('/cleaner/active');
+      router.push({ pathname: '/cleaner/active', params: { booking_id: bookingId } });
     } catch (error: any) {
       alert('Error accepting booking');
     }

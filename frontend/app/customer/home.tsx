@@ -43,11 +43,7 @@ export default function CustomerHome() {
   };
 
   const handleServiceSelect = (service: Service) => {
-    if (service.booking_type === 'visit_centre') {
-      router.push({ pathname: '/customer/centres', params: { service_id: service.service_id } });
-    } else {
-      router.push({ pathname: '/customer/map', params: { service_id: service.service_id } });
-    }
+    router.push({ pathname: '/customer/map', params: { service_id: service.service_id } });
   };
 
   const handleLogout = async () => {
@@ -97,11 +93,6 @@ export default function CustomerHome() {
                 <View style={styles.serviceMeta}>
                   <Ionicons name="time-outline" size={14} color="#888" />
                   <Text style={styles.metaText}>{service.duration_minutes} min</Text>
-                  {service.booking_type === 'visit_centre' && (
-                    <View style={styles.centreTag}>
-                      <Text style={styles.centreTagText}>Visit Centre</Text>
-                    </View>
-                  )}
                 </View>
               </View>
               <View style={styles.priceWrap}>

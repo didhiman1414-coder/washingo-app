@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "264009343661",
+    "project_id": "washingo-d9dc2",
+    "storage_bucket": "washingo-d9dc2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:264009343661:android:05bf930c43b548c5a01c24",
+        "android_client_info": {
+          "package_name": "com.washingo.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJ7wyLmACqB557dkJ41cOJ6usqHziiM0Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,10 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { Ionicons } from '@expo/vector-icons';
+
+// Try to import @react-native-firebase/auth (only works in dev build, not Expo Go/web)
+let firebaseAuth: any = null;
+try {
+  firebaseAuth = require('@react-native-firebase/auth').default;
+} catch (e) {
+  // Native Firebase not available (web preview or Expo Go) — will use backend OTP fallback
+  console.log('Firebase native auth not available — using backend OTP verification');
+}
 
 export default function PhoneAuth() {
   const router = useRouter();
@@ -16,6 +25,7 @@ export default function PhoneAuth() {
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'phone' | 'otp' | 'register'>('phone');
   const [loading, setLoading] = useState(false);
+  const confirmationRef = useRef<any>(null);
 
   const getRoleLabel = () => {
     if (role === 'customer') return 'Book car cleaning services';
@@ -31,36 +41,83 @@ export default function PhoneAuth() {
     }
     setLoading(true);
     try {
-      const response = await authAPI.getUserByPhone(phone);
-      if (response.data) {
-        Alert.alert('OTP Sent', 'OTP sent to your phone (Use 123456 for testing)');
+      if (firebaseAuth && Platform.OS !== 'web') {
+        // REAL Firebase Phone Auth (Dev Build only)
+        const confirmation = await firebaseAuth().signInWithPhoneNumber(`+91${phone}`);
+        confirmationRef.current = confirmation;
         setStep('otp');
+      } else {
+        // Fallback: Check if user exists in backend
+        try {
+          await authAPI.getUserByPhone(phone);
+          // User exists — send mock OTP
+          Alert.alert('OTP Sent', 'OTP sent to +91 ' + phone + ' (Test: 123456)');
+          setStep('otp');
+        } catch (error: any) {
+          if (error.response?.status === 404) {
+            setStep('register');
+          } else {
+            Alert.alert('Error', error.response?.data?.detail || error.message || 'Failed to send OTP');
+          }
+        }
       }
     } catch (error: any) {
-      if (error.response?.status === 404) {
-        setStep('register');
-      } else {
-        Alert.alert('Error', 'Something went wrong');
-      }
+      // Show real Firebase error message
+      const msg = error.message || error.code || 'Failed to send OTP';
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleVerifyOTP = async () => {
-    if (otp !== '123456') {
-      Alert.alert('Error', 'Invalid OTP. Use 123456 for testing');
+    if (!otp || otp.length < 4) {
+      Alert.alert('Error', 'Please enter the OTP');
       return;
     }
     setLoading(true);
     try {
-      const response = await authAPI.getUserByPhone(phone);
-      const userData = response.data;
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
-      navigateByRole(userData.role);
-    } catch (error) {
-      Alert.alert('Error', 'Login failed');
+      let firebase_uid = '';
+
+      if (confirmationRef.current && Platform.OS !== 'web') {
+        // REAL Firebase OTP verification
+        const userCredential = await confirmationRef.current.confirm(otp);
+        firebase_uid = userCredential.user.uid;
+      } else {
+        // Fallback: Mock OTP verification
+        if (otp !== '123456') {
+          Alert.alert('Invalid OTP', 'Please enter the correct OTP (Test: 123456)');
+          setLoading(false);
+          return;
+        }
+        firebase_uid = `fb_${phone}_${Date.now()}`;
+      }
+
+      // Check if user exists in backend
+      try {
+        const response = await authAPI.getUserByPhone(phone);
+        const userData = response.data;
+        // Update firebase_uid if needed
+        if (firebase_uid && userData.firebase_uid !== firebase_uid) {
+          await authAPI.loginOrRegister({
+            phone, name: userData.name, role: userData.role, firebase_uid
+          });
+        }
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        navigateByRole(userData.role);
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          // User not found — need registration
+          setStep('register');
+        } else {
+          Alert.alert('Error', error.response?.data?.detail || error.message || 'Login failed');
+        }
+      }
+    } catch (error: any) {
+      // Show real Firebase error
+      const msg = error.message || error.code || 'OTP verification failed';
+      Alert.alert('Verification Failed', msg);
     } finally {
       setLoading(false);
     }
@@ -73,7 +130,16 @@ export default function PhoneAuth() {
     }
     setLoading(true);
     try {
-      const firebase_uid = `fb_${phone}_${Date.now()}`;
+      let firebase_uid = '';
+
+      if (confirmationRef.current && Platform.OS !== 'web') {
+        // Already authenticated via Firebase — get the uid
+        const currentUser = firebaseAuth().currentUser;
+        firebase_uid = currentUser?.uid || `fb_${phone}_${Date.now()}`;
+      } else {
+        firebase_uid = `fb_${phone}_${Date.now()}`;
+      }
+
       const response = await authAPI.loginOrRegister({
         phone, name, role: role as string, firebase_uid,
       });
@@ -85,7 +151,7 @@ export default function PhoneAuth() {
       else if (role === 'centre') router.push('/centre/setup');
       else navigateByRole(userData.role);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Registration failed');
+      Alert.alert('Error', error.response?.data?.detail || error.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -129,7 +195,7 @@ export default function PhoneAuth() {
               onPress={handleSendOTP}
               disabled={loading}
             >
-              <Text style={styles.buttonText}>{loading ? 'Please wait...' : 'Continue'}</Text>
+              <Text style={styles.buttonText}>{loading ? 'Sending OTP...' : 'Send OTP'}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -137,7 +203,7 @@ export default function PhoneAuth() {
         {step === 'otp' && (
           <>
             <Text style={styles.label}>Enter OTP sent to +91 {phone}</Text>
-            <Text style={styles.hint}>Test OTP: 123456</Text>
+            {!firebaseAuth && <Text style={styles.hint}>Test OTP: 123456</Text>}
             <TextInput
               testID="otp-input"
               style={styles.input}
@@ -155,7 +221,7 @@ export default function PhoneAuth() {
             >
               <Text style={styles.buttonText}>{loading ? 'Verifying...' : 'Verify OTP'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setStep('phone')}>
+            <TouchableOpacity onPress={() => { setStep('phone'); confirmationRef.current = null; }}>
               <Text style={styles.link}>Change phone number</Text>
             </TouchableOpacity>
           </>
@@ -183,7 +249,7 @@ export default function PhoneAuth() {
             >
               <Text style={styles.buttonText}>{loading ? 'Creating account...' : 'Register'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setStep('phone')}>
+            <TouchableOpacity onPress={() => { setStep('phone'); confirmationRef.current = null; }}>
               <Text style={styles.link}>Change phone number</Text>
             </TouchableOpacity>
           </>

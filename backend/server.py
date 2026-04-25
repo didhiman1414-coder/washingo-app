@@ -306,7 +306,7 @@ async def get_services():
             {'service_id': '1', 'name': 'Dusting Only', 'description': 'Quick dust removal with microfiber cloth', 'price': 99, 'duration_minutes': 15, 'icon': 'brush', 'booking_type': 'home_service'},
             {'service_id': '2', 'name': 'Wet Cloth Clean', 'description': 'Thorough wet cleaning with premium cloth', 'price': 149, 'duration_minutes': 25, 'icon': 'water', 'booking_type': 'home_service'},
             {'service_id': '3', 'name': 'Full Wash', 'description': 'Complete car wash with water and shampoo', 'price': 299, 'duration_minutes': 45, 'icon': 'car-wash', 'booking_type': 'both'},
-            {'service_id': '4', 'name': 'Visit Washing Centre', 'description': 'Premium wash at a nearby centre with foam and wax', 'price': 399, 'duration_minutes': 60, 'icon': 'store', 'booking_type': 'visit_centre'}
+            {'service_id': '4', 'name': 'Interior & Exterior Full Clean', 'description': 'Premium interior and exterior deep cleaning', 'price': 499, 'duration_minutes': 90, 'icon': 'store', 'booking_type': 'both'}
         ]
     return services
 
@@ -316,7 +316,7 @@ async def seed_services():
         {'service_id': '1', 'name': 'Dusting Only', 'description': 'Quick dust removal with microfiber cloth', 'price': 99, 'duration_minutes': 15, 'icon': 'brush', 'booking_type': 'home_service'},
         {'service_id': '2', 'name': 'Wet Cloth Clean', 'description': 'Thorough wet cleaning with premium cloth', 'price': 149, 'duration_minutes': 25, 'icon': 'water', 'booking_type': 'home_service'},
         {'service_id': '3', 'name': 'Full Wash', 'description': 'Complete car wash with water and shampoo', 'price': 299, 'duration_minutes': 45, 'icon': 'car-wash', 'booking_type': 'both'},
-        {'service_id': '4', 'name': 'Visit Washing Centre', 'description': 'Premium wash at a nearby centre with foam and wax', 'price': 399, 'duration_minutes': 60, 'icon': 'store', 'booking_type': 'visit_centre'}
+        {'service_id': '4', 'name': 'Interior & Exterior Full Clean', 'description': 'Premium interior and exterior deep cleaning', 'price': 499, 'duration_minutes': 90, 'icon': 'store', 'booking_type': 'both'}
     ]
     await db.services.delete_many({})
     await db.services.insert_many(services)

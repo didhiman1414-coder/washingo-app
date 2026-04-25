@@ -84,14 +84,6 @@ export default function Index() {
           </View>
           <Ionicons name="chevron-forward" size={24} color="#1565C0" />
         </TouchableOpacity>
-
-        <TouchableOpacity
-          testID="admin-btn"
-          style={styles.adminLink}
-          onPress={() => router.push('/admin/login')}
-        >
-          <Text style={styles.adminText}>Admin Panel</Text>
-        </TouchableOpacity>
       </View>
 
       <Text style={styles.footer}>By continuing, you agree to our Terms & Privacy Policy</Text>
@@ -125,8 +117,6 @@ const styles = StyleSheet.create({
   roleInfo: { flex: 1 },
   roleTitle: { fontSize: 17, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 2 },
   roleDesc: { fontSize: 13, color: '#888' },
-  adminLink: { alignItems: 'center', marginTop: 16 },
-  adminText: { fontSize: 14, color: '#1565C0', fontWeight: '600' },
   footer: {
     fontSize: 12, color: '#999', textAlign: 'center',
     paddingHorizontal: 24, paddingBottom: 24,

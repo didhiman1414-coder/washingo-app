@@ -81,8 +81,8 @@ export default function MapScreen() {
           {cleaners.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="people-outline" size={64} color="#CCC" />
-              <Text style={styles.emptyText}>No cleaners available</Text>
-              <Text style={styles.emptySubtext}>Please try again later</Text>
+              <Text style={styles.emptyText}>No workers available nearby</Text>
+              <Text style={styles.emptySubtext}>Check back in a few minutes</Text>
             </View>
           ) : (
             cleaners.map((cleaner) => (
