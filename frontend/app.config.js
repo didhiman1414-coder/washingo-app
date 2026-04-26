@@ -51,6 +51,11 @@ const config = {
     experiments: {
       typedRoutes: true,
     },
+    extra: {
+      eas: {
+        projectId: 'a405b922-0ee4-4472-a14e-2dba5d9092e5',
+      },
+    },
   },
 };
 
