@@ -7,7 +7,7 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1034233428104:web:9a95e1b44071369706873d",
+        "mobilesdk_app_id": "1:1034233428104:android:dc9f01cd5fc8d1ce06873d",
         "android_client_info": {
           "package_name": "com.washingo.app"
         }
