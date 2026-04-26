@@ -16,7 +16,7 @@ const config = {
     },
     android: {
       package: 'com.washingo.app',
-      googleServicesFile: './android/app/google-services.json',
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON || './android/app/google-services.json',
       adaptiveIcon: {
         foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#1565C0',
