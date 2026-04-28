@@ -5,15 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { Ionicons } from '@expo/vector-icons';
-
-// Try to import @react-native-firebase/auth (only works in dev build, not Expo Go/web)
-let firebaseAuth: any = null;
-try {
-  firebaseAuth = require('@react-native-firebase/auth').default;
-} catch (e) {
-  // Native Firebase not available (web preview or Expo Go) — will use backend OTP fallback
-  console.log('Firebase native auth not available — using backend OTP verification');
-}
+import { firebaseAuth } from '../../services/firebase';
+import { signInWithPhoneNumber, PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
 
 export default function PhoneAuth() {
   const router = useRouter();
@@ -41,16 +34,15 @@ export default function PhoneAuth() {
     }
     setLoading(true);
     try {
-      if (firebaseAuth && Platform.OS !== 'web') {
-        // REAL Firebase Phone Auth (Dev Build only)
-        const confirmation = await firebaseAuth().signInWithPhoneNumber(`+91${phone}`);
+      if (firebaseAuth) {
+        // Real Firebase Phone Auth
+        const confirmation = await signInWithPhoneNumber(firebaseAuth, `+91${phone}`);
         confirmationRef.current = confirmation;
         setStep('otp');
       } else {
         // Fallback: Check if user exists in backend
         try {
           await authAPI.getUserByPhone(phone);
-          // User exists — send mock OTP
           Alert.alert('OTP Sent', 'OTP sent to +91 ' + phone + ' (Test: 123456)');
           setStep('otp');
         } catch (error: any) {
@@ -62,7 +54,6 @@ export default function PhoneAuth() {
         }
       }
     } catch (error: any) {
-      // Show real Firebase error message
       const msg = error.message || error.code || 'Failed to send OTP';
       Alert.alert('Error', msg);
     } finally {
@@ -79,8 +70,8 @@ export default function PhoneAuth() {
     try {
       let firebase_uid = '';
 
-      if (confirmationRef.current && Platform.OS !== 'web') {
-        // REAL Firebase OTP verification
+      if (confirmationRef.current) {
+        // Real Firebase OTP verification
         const userCredential = await confirmationRef.current.confirm(otp);
         firebase_uid = userCredential.user.uid;
       } else {
@@ -132,9 +123,9 @@ export default function PhoneAuth() {
     try {
       let firebase_uid = '';
 
-      if (confirmationRef.current && Platform.OS !== 'web') {
+      if (confirmationRef.current) {
         // Already authenticated via Firebase — get the uid
-        const currentUser = firebaseAuth().currentUser;
+        const currentUser = firebaseAuth?.currentUser;
         firebase_uid = currentUser?.uid || `fb_${phone}_${Date.now()}`;
       } else {
         firebase_uid = `fb_${phone}_${Date.now()}`;
