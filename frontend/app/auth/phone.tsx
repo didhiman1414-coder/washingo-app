@@ -6,7 +6,6 @@ import { authAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { Ionicons } from '@expo/vector-icons';
 import { firebaseAuth } from '../../services/firebase';
-import { signInWithPhoneNumber, PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
 
 export default function PhoneAuth() {
   const router = useRouter();
@@ -35,12 +34,12 @@ export default function PhoneAuth() {
     setLoading(true);
     try {
       if (firebaseAuth) {
-        // Real Firebase Phone Auth
-        const confirmation = await signInWithPhoneNumber(firebaseAuth, `+91${phone}`);
+        // Real Firebase Phone Auth via @react-native-firebase/auth
+        const confirmation = await firebaseAuth().signInWithPhoneNumber(`+91${phone}`);
         confirmationRef.current = confirmation;
         setStep('otp');
       } else {
-        // Fallback: Check if user exists in backend
+        // Fallback (web preview): backend OTP check
         try {
           await authAPI.getUserByPhone(phone);
           Alert.alert('OTP Sent', 'OTP sent to +91 ' + phone + ' (Test: 123456)');
@@ -75,7 +74,7 @@ export default function PhoneAuth() {
         const userCredential = await confirmationRef.current.confirm(otp);
         firebase_uid = userCredential.user.uid;
       } else {
-        // Fallback: Mock OTP verification
+        // Fallback: Mock OTP
         if (otp !== '123456') {
           Alert.alert('Invalid OTP', 'Please enter the correct OTP (Test: 123456)');
           setLoading(false);
@@ -88,7 +87,6 @@ export default function PhoneAuth() {
       try {
         const response = await authAPI.getUserByPhone(phone);
         const userData = response.data;
-        // Update firebase_uid if needed
         if (firebase_uid && userData.firebase_uid !== firebase_uid) {
           await authAPI.loginOrRegister({
             phone, name: userData.name, role: userData.role, firebase_uid
@@ -99,14 +97,12 @@ export default function PhoneAuth() {
         navigateByRole(userData.role);
       } catch (error: any) {
         if (error.response?.status === 404) {
-          // User not found — need registration
           setStep('register');
         } else {
           Alert.alert('Error', error.response?.data?.detail || error.message || 'Login failed');
         }
       }
     } catch (error: any) {
-      // Show real Firebase error
       const msg = error.message || error.code || 'OTP verification failed';
       Alert.alert('Verification Failed', msg);
     } finally {
@@ -123,9 +119,8 @@ export default function PhoneAuth() {
     try {
       let firebase_uid = '';
 
-      if (confirmationRef.current) {
-        // Already authenticated via Firebase — get the uid
-        const currentUser = firebaseAuth?.currentUser;
+      if (firebaseAuth) {
+        const currentUser = firebaseAuth().currentUser;
         firebase_uid = currentUser?.uid || `fb_${phone}_${Date.now()}`;
       } else {
         firebase_uid = `fb_${phone}_${Date.now()}`;
