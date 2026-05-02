@@ -1,14 +1,17 @@
-// @react-native-firebase/auth — auto-initializes from google-services.json
-// No initializeApp() needed. No firebase web SDK used.
+// @react-native-firebase/auth
+// Auto-initializes from google-services.json
+// No initializeApp() needed
 
-let auth: any = null;
+let firebaseAuth: any = null;
 
 try {
-  auth = require('@react-native-firebase/auth').default;
-} catch {
-  // Native Firebase not available (web preview) — backend OTP fallback used
-  console.log('Firebase native auth not available — using backend OTP fallback');
+  const firebaseAuthModule = require('@react-native-firebase/auth');
+  firebaseAuth = firebaseAuthModule.default || firebaseAuthModule;
+  console.log('Firebase Auth loaded successfully');
+} catch (error) {
+  console.log('Firebase native auth not available:', error);
+  firebaseAuth = null;
 }
 
-export { auth as firebaseAuth };
-export default auth;
+export { firebaseAuth };
+export default firebaseAuth;
