@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { adminAPI } from '../../services/api';
 
@@ -11,22 +12,26 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
-      return;
+  if (!email || !password) {
+    Alert.alert('Error', 'Please enter email and password');
+    return;
+  }
+  setLoading(true);
+  try {
+    const response = await adminAPI.login(email, password);
+    if (response.data.token) {
+      await AsyncStorage.setItem('adminToken', response.data.token);
+      await AsyncStorage.setItem('isAdmin', 'true');
+      router.replace('/admin/dashboard');
+    } else {
+      Alert.alert('Error', 'Invalid credentials');
     }
-    setLoading(true);
-    try {
-      const response = await adminAPI.login(email, password);
-      if (response.data.token) {
-        router.replace('/admin/dashboard');
-      }
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Invalid credentials');
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (error: any) {
+    Alert.alert('Error', error.response?.data?.detail || 'Invalid credentials');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
